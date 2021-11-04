@@ -29,7 +29,7 @@ class ResnetGenerator(nn.Module):
         DownBlock += [nn.ReflectionPad1d(3), # 7*7卷积核，Padding为3
                       nn.Conv1d(input_nc, ngf, kernel_size=7, stride=1, padding=0, bias=False),
                       nn.InstanceNorm1d(ngf), # IN归一化
-                      nn.ReLU(True)]
+                      nn.LeakyReLU(0.2, True)]
         # input_nc->ngf(64)
         
         # Down-Sampling（下采样模块） * 2
@@ -39,11 +39,10 @@ class ResnetGenerator(nn.Module):
             DownBlock += [nn.ReflectionPad1d(1),
                           nn.Conv1d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=0, bias=False),
                           nn.InstanceNorm1d(ngf * mult * 2),
-                          nn.ReLU(True)]
+                          nn.LeakyReLU(0.2, True)]
             #i=0, ngf(64)->nfg*1*2(128)
             #i=1, nfg*1*2(128)->nfg*2*2(256)
-
-            
+  
         # Down-Sampling Bottleneck(编码器残差块) * 6
         mult = 2 ** n_downsampling
         for i in range(n_blocks):
@@ -58,19 +57,19 @@ class ResnetGenerator(nn.Module):
         
         self.conv1x1 = nn.Conv1d(ngf * mult * 2, ngf * mult, kernel_size=1, stride=1, bias=True)
         # 将叠加后的特征图降维，512->256
-        self.relu = nn.ReLU(True)
+        self.relu = nn.LeakyReLU(0.2, True)
 
         # Gamma, Beta block
         if self.light:
             FC = [nn.Linear(ngf * mult, ngf * mult, bias=False),
-                  nn.ReLU(True),
+                  nn.LeakyReLU(0.2, True),
                   nn.Linear(ngf * mult, ngf * mult, bias=False),
-                  nn.ReLU(True)]
+                  nn.LeakyReLU(0.2, True)]
         else:
             FC = [nn.Linear(signal_size // mult * signal_size // mult * ngf * mult, ngf * mult, bias=False),
-                  nn.ReLU(True),
+                  nn.LeakyReLU(0.2, True),
                   nn.Linear(ngf * mult, ngf * mult, bias=False),
-                  nn.ReLU(True)]
+                  nn.LeakyReLU(0.2, True)]
         # 轻量化：256->256, 256->256, 非轻量化signal_size/4*signal_size/4*64*4(signal_size^2/16)->256
         
         # AdaILN中的Gamma和Beta
@@ -91,7 +90,7 @@ class ResnetGenerator(nn.Module):
                          nn.ReflectionPad1d(1),
                          nn.Conv1d(ngf * mult, int(ngf * mult / 2), kernel_size=3, stride=1, padding=0, bias=False),
                          ILN(int(ngf * mult / 2)), # 使用的是ILN归一化
-                         nn.ReLU(True)]
+                         nn.LeakyReLU(0.2, True)]
             # i=0, 256->128（signal_size/4->signal_size/2）
             # i=1, 128->64(signal_size/2->signal_size)
 
@@ -150,7 +149,7 @@ class ResnetBlock(nn.Module):
         conv_block += [nn.ReflectionPad1d(1),
                        nn.Conv1d(dim, dim, kernel_size=3, stride=1, padding=0, bias=use_bias),
                        nn.InstanceNorm1d(dim),
-                       nn.ReLU(True)]
+                       nn.LeakyReLU(0.2, True)]
 
         conv_block += [nn.ReflectionPad1d(1),
                        nn.Conv1d(dim, dim, kernel_size=3, stride=1, padding=0, bias=use_bias),
@@ -172,7 +171,7 @@ class ResnetAdaILNBlock(nn.Module):
         self.pad1 = nn.ReflectionPad1d(1)
         self.conv1 = nn.Conv1d(dim, dim, kernel_size=3, stride=1, padding=0, bias=use_bias)
         self.norm1 = adaILN(dim) # adaILN归一化（可以改成GN或者LN试一试）
-        self.relu1 = nn.ReLU(True)
+        self.relu1 = nn.LeakyReLU(0.2, True)
 
         self.pad2 = nn.ReflectionPad1d(1)
         self.conv2 = nn.Conv1d(dim, dim, kernel_size=3, stride=1, padding=0, bias=use_bias)
@@ -332,7 +331,8 @@ class Discriminator(nn.Module):
 # print(Dout)
 
 
-# In[ ]:
+# In[1]:
+
 
 class RhoClipper(object):
 
@@ -346,6 +346,10 @@ class RhoClipper(object):
             w = module.rho.data
             w = w.clamp(self.clip_min, self.clip_max)
             module.rho.data = w
+
+
+# In[ ]:
+
 
 
 
